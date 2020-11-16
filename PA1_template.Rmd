@@ -1,0 +1,126 @@
+---
+title: "RepData_PeerAssessment1"
+author: "Lester Burgwardt"
+date: "11/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##  Activity Analysis
+Read in the data into a data frame  
+
+```{r Ingest data, echo = TRUE}
+activity_file = 'C:/Users/Charlie/Documents/Coursera/DataScience/ReproducibleResearch/Week2/RepData_PeerAssessment1/repdata_data_activity/activity.csv'
+activity_df = read.csv(activity_file)
+```
+
+Take a look at the first three lines  
+
+```{r}
+head(activity_df,3)
+```
+To calculate the total number of steps taken per day:  
+1. Group by date  
+2. Then find sum for each date  
+  
+```{r}
+totalSteps = aggregate(activity_df$steps, by=list(Date=activity_df$date), FUN=sum)
+hist(totalSteps$x,
+     main='Histogram of Total Steps',
+     xlab='Total Steps',
+     ylab='Frequency')
+
+#Insert a page break after the plot
+cat("  \n")
+
+```
+The mean and median of the total number of steps taken per day are:  
+```{r}
+mean(totalSteps$x, na.rm=TRUE)
+median(totalSteps$x, na.rm=TRUE)
+```
+Plot the average number of steps per interval and show which interval has the highest average number of steps.  
+```{r}
+averageStepsPerInterval = aggregate(activity_df$steps, by=list(Interval=activity_df$interval), FUN=mean, na.rm=TRUE)
+plot(averageStepsPerInterval$Interval, averageStepsPerInterval$x,
+     type = "l",
+     main='Time Series of Average Steps per Time Interval',
+     xlab='Time Interval',
+     ylab='Number of Steps')
+averageStepsPerInterval$Interval[which.max(averageStepsPerInterval$x)]
+```
+Number of missing values:  
+```{r}
+sum(is.na(activity_df$steps))
+```
+Set missing values to median of 5-minute interval.  
+The new dataset is imputed_df.
+
+```{r}
+medianStepsPerInterval = aggregate(activity_df$steps, 
+                                   by=list(Interval=activity_df$interval), 
+                                   FUN=median, na.rm=TRUE)
+imputed_df <- activity_df
+for(i in 1:length(imputed_df$steps)){
+        if (is.na(imputed_df$steps[i])){
+                imputed_df$steps[i] <- 
+                        medianStepsPerInterval$x[which(
+                                medianStepsPerInterval$Interval == imputed_df$interval[i])]
+        }
+        
+}
+totalImputedSteps = aggregate(imputed_df$steps, by=list(Date=imputed_df$date), FUN=sum)
+hist(totalImputedSteps$x,
+     main='Histgram of Total Steps Including Imputed Values',
+     xlab='Total Steps',
+     ylab='Frequency')
+#Insert a page break after the plot
+cat("  \n")
+
+```
+The mean and median of the total number of steps including imputed values taken per day are:  
+```{r}
+mean(totalImputedSteps$x, na.rm=TRUE)
+median(totalImputedSteps$x, na.rm=TRUE)
+```
+The mean changed from 10766.19 to 9503.869 steps per day,  
+the median changed from 10765 to 10395 steps per day.  
+
+Set up the day type variable as a factor with weekday or weekend  
+```{r}
+library(chron)
+imputed_df$daytype = is.weekend(as.Date(imputed_df$date))
+imputed_df$daytype[imputed_df$daytype] <- 'weekend'
+imputed_df$daytype[!as.logical(imputed_df$daytype)] <- 'weekday'
+imputed_df$daytype <- as.factor(imputed_df$daytype)
+
+```
+Make a two panel time series for weekdays and weekends  
+```{r}
+
+averageImputedStepsWeekday = aggregate(
+        imputed_df$steps[which(imputed_df$daytype=='weekday')],
+        by=list(Date=imputed_df$date[which(imputed_df$daytype=='weekday')]),
+        FUN=mean)
+averageImputedStepsWeekend = aggregate(
+        imputed_df$steps[which(imputed_df$daytype=='weekend')],
+        by=list(Date=imputed_df$date[which(imputed_df$daytype=='weekend')]),
+        FUN=mean)
+
+par(mfrow=c(2,1))
+par(cex = 0.6)
+par(mar = c(0, 0, 0, 0), oma = c(4, 7, 0.5, 0.5))
+par(tcl = -0.25)
+plot(as.Date(averageImputedStepsWeekend$Date),averageImputedStepsWeekend$x, 
+     type='l')
+plot(as.Date(averageImputedStepsWeekday$Date),averageImputedStepsWeekday$x, 
+     type='l')
+
+mtext("Date", side = 1, outer = TRUE, cex = 0.7, line = 2.2,col = "grey20")
+mtext("Number of Steps", side = 2, outer = TRUE, cex = 0.7, line = 2.2,col = "grey20")
+
+```
+
+
